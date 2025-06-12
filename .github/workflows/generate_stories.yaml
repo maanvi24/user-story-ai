@@ -1,0 +1,46 @@
+name: Generate User Stories
+
+on:
+  push:
+    paths:
+      - 'requirements/*.md'
+      - '*.py'               # Run also if Python code changes
+      - 'tests/**'           # Run if tests change
+  workflow_dispatch:
+
+jobs:
+  generate-stories:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install flake8 pytest
+
+    - name: Lint Python files
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Run tests
+      run: pytest --maxfail=3 --disable-warnings -q
+
+    - name: Run user story generator
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: python main.py
+
+    - name: Commit output file
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add output/User_Stories_Document.md
+        git commit -m "🔁 Auto-generated user stories" || echo "No changes"
+        git push
